@@ -20,9 +20,11 @@
 #define LOW                 0
 #endif /* LOW */
 
-#define OLED_GRAM_MAX       30
+/* ×ÖÌå´óÐ¡ */
 #define OLED_FONT_EIGHT     8
 #define OLED_FONT_SIXTEEN   16
+
+#define OLED_GRAM_MAX       30
 #define OLED_MAX_COLUMN     128
 #define OLED_MAX_ROW        64
 
@@ -65,13 +67,17 @@
 extern uint8_t g_OLED_Gram[OLED_GRAM_MAX][16];
 extern uint8_t g_OLED_Roll_Page;
 
-void OLED_Fill( uint8_t Bmp_data );
-void OLED_Row_Clear( uint8_t Row, uint8_t Amount );
-void OLED_ShowRoll( uint8_t Y, uint8_t Line, uint8_t Size, uint8_t Mode );
+void OLED_Write_Cmd( uint8_t Cmd );
+void OLED_Write_Data( uint8_t Data, uint8_t Inverse );
+void OLED_Fill( uint8_t Mode );
+void OLED_Row_Clear( uint8_t Row, uint8_t Amount ,uint8_t Mode );
+void OLED_Coord( uint8_t X, uint8_t Y );
+void OLED_ShowRoll( uint8_t Y, uint8_t Line, uint8_t Mode );
 void OLED_ShowChar( uint8_t X, uint8_t Y, uint8_t Char, uint8_t Size, uint8_t Inverse );
 void OLED_ShowString( uint8_t X, uint8_t Y, const uint8_t *pChar, uint16_t Len, uint8_t Size, uint8_t Inverse );
 void OLED_ShowPrintf( uint8_t X, uint8_t Y, const uint8_t *pChar, uint8_t Size, _Bool Align, uint8_t Inverse);
-void OLED_ShowNum( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Len, uint8_t Size, uint8_t Inverse );
+uint32_t OLED_Power( uint8_t M, uint8_t N );
+void OLED_ShowNum( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Len, uint8_t Size, uint8_t Prefix, uint8_t Inverse );
 void OLED_ShowHex( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Size, uint8_t Prefix, uint8_t Inverse );
 
 #if 1
@@ -86,6 +92,8 @@ void OLED_Display_Off(void);
 void OLED_Config(void);
 void OLED_Init(void);
 
+void OLED_ShowChinese( uint8_t X, uint8_t Y, const uint8_t *pArray, uint8_t Inverse );
+void OLED_Draw_Font( uint8_t X, uint8_t Y, const uint8_t *pArray, uint8_t Inverse );
 
 #endif /* __OLED12864_DRV_H */
 

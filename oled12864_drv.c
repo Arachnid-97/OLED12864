@@ -3,6 +3,12 @@
 //#define NDEBUG              //取消断言
 #include <assert.h>         // 断言库
 
+//#define _FONT_LIBRARY		// 是否使用外带字库
+
+#ifdef _FONT_LIBRARY
+	#include "gb2312_font.h"
+
+#endif /* _FONT_LIBRARY */
 
 /*
     硬件接口说明:
@@ -194,7 +200,7 @@ static void Write_IIC_Byte( uint8_t Byte )
 参    数 ： Cmd ---- 命令
 返 回 值 ： 无
 *************************************************/
-static void OLED_Write_Cmd( uint8_t Cmd )
+void OLED_Write_Cmd( uint8_t Cmd )
 {
 
 #ifdef _OLED_IIC_MODE
@@ -242,10 +248,10 @@ static void OLED_Write_Cmd( uint8_t Cmd )
 函数名称 ： OLED_Write_Data
 功    能 ： OLED写数据
 参    数 ： Data ---- 数据
-           Inverse ---- 反白显示
+           Inverse ---- 反白显示使能
 返 回 值 ： 无
 *************************************************/
-static void OLED_Write_Data( uint8_t Data, uint8_t Inverse )
+void OLED_Write_Data( uint8_t Data, uint8_t Inverse )
 {
 
 #ifdef _OLED_IIC_MODE
@@ -323,50 +329,48 @@ static void OLED_Write_Data( uint8_t Data, uint8_t Inverse )
 
 /************************************************
 函数名称 ： OLED_Fill
-功    能 ： OLED显示
-参    数 ： Bmp_data ---- 数据
+功    能 ： OLED亮屏 / 清屏
+参    数 ： Mode ---- 清除/显示(OLED_CLS or OLED_SHOW)
 返 回 值 ： 无
 *************************************************/
-void OLED_Fill( uint8_t Bmp_data )
+void OLED_Fill( uint8_t Mode )
 {
     uint8_t y,x;
-
-//    OLED_Write_Cmd(0x2E);                       // 失能滚动
 
     for(y = 0;y < 8;y++)
     {
         OLED_Write_Cmd(0xB0 + y);               // 第 n页开始（0~7）
         OLED_Write_Cmd(0x10);                   // 设置显示位置 - 列高位第一个
-        OLED_Write_Cmd(0x01);                   // 设置显示位置 - 列低位第一个
-        for(x = 0;x < X_WIDTH;x++)
+        OLED_Write_Cmd(0x00);                   // 设置显示位置 - 列低位第一个
+        for(x = 0;x < OLED_MAX_COLUMN;x++)
         {
-            OLED_Write_Data(Bmp_data, DISABLE); // Bmp_dat = 0x00全屏灭，Bmp_dat = 0xff全屏亮
+            OLED_Write_Data(Mode, DISABLE); // Data = 0x00全屏灭，Data = 0xff全屏亮
         }
     }
 }
 
 /************************************************
 函数名称 ： OLED_Row_Clear
-功    能 ： OLED单行清除
+功    能 ： OLED单行清除 / 显示
 参    数 ： Row ---- 首行
             Amount ---- 行数
+			Mode ---- 清除/显示(OLED_CLS or OLED_SHOW)
 返 回 值 ： 无
 *************************************************/
-void OLED_Row_Clear( uint8_t Row, uint8_t Amount )
+void OLED_Row_Clear( uint8_t Row, uint8_t Amount ,uint8_t Mode )
 {
     uint8_t y,x;
 
-//    OLED_Write_Cmd(0x2E);                       // 失能滚动
     if(Row < 8)
     {
         for(y = 0;y < Amount;y++)
         {
             OLED_Write_Cmd(0xB0 + Row + y);         // 第 n页开始（0~7）
             OLED_Write_Cmd(0x10);                   // 设置显示位置 - 列高位第一个
-            OLED_Write_Cmd(0x01);                   // 设置显示位置 - 列低位第一个
-            for(x = 0;x < X_WIDTH;x++)
+            OLED_Write_Cmd(0x00);                   // 设置显示位置 - 列低位第一个
+            for(x = 0;x < OLED_MAX_COLUMN;x++)
             {
-                OLED_Write_Data(OLED_CLS, DISABLE); // Bmp_dat = 0x00全屏灭，Bmp_dat = 0xff全屏亮
+                OLED_Write_Data(Mode, DISABLE);
             }
         }
     }
@@ -379,10 +383,10 @@ void OLED_Row_Clear( uint8_t Row, uint8_t Amount )
 			Y ---- Y轴
 返 回 值 ： 无
 *************************************************/
-static void OLED_Coord( uint8_t X, uint8_t Y )
+void OLED_Coord( uint8_t X, uint8_t Y )
 {
-    assert(X < X_WIDTH);
-    assert(Y < (Y_WIDTH >> 3));
+//    assert(X < X_WIDTH);
+//    assert(Y < (Y_WIDTH >> 3));
 
     /* B0~B7:此命令仅适用于页面寻址模式 */
     OLED_Write_Cmd(0xB0 + Y);                   // 设置GDDRAM页面开始地址,(Page 0~ Page 7)为页面寻址模式
@@ -391,7 +395,7 @@ static void OLED_Coord( uint8_t X, uint8_t Y )
     OLED_Write_Cmd(((X & 0xF0) >> 4) | 0x10);   // 页面寻址模式下设置列开始地址寄存器的高位
 
     /* 00~0F:此命令仅适用于页面寻址模式 */
-    OLED_Write_Cmd((X & 0x0F) | 0x01);          // 页面寻址模式下设置列开始地址寄存器的低位
+    OLED_Write_Cmd((X & 0x0F) | 0x00);          // 页面寻址模式下设置列开始地址寄存器的低位
 }
 
 /************************************************
@@ -399,10 +403,10 @@ static void OLED_Coord( uint8_t X, uint8_t Y )
 功    能 ： OLED内置滚动显示
 参    数 ： Y ---- 起始行
             Line ---- 滚动行数 (0 ---> 取消滚动)
-            Mode ---- 滚动模式
+            Mode ---- 滚动模式（OLED_LEFT_ROLL or OLED_RIGHT_ROLL）
 返 回 值 ： 无
 *************************************************/
-void OLED_ShowRoll( uint8_t Y, uint8_t Line, uint8_t Size, uint8_t Mode )
+void OLED_ShowRoll( uint8_t Y, uint8_t Line, uint8_t Mode )
 {
     if(Line > 0)
     {
@@ -421,7 +425,7 @@ void OLED_ShowRoll( uint8_t Y, uint8_t Line, uint8_t Size, uint8_t Mode )
         OLED_Write_Cmd(0x00);                   // 虚拟字节设置，默认为0x00
         OLED_Write_Cmd(Y);                      // 定义开始页面地址
         OLED_Write_Cmd(0x07);                   // 帧频设置
-        OLED_Write_Cmd(Y + (Line*(Size >> 3) - 1));  // 定义结束页面地址
+        OLED_Write_Cmd(Y + (Line - 1));  		// 定义结束页面地址
         OLED_Write_Cmd(0x00);                   // 虚拟字节设置，默认为0x00
         OLED_Write_Cmd(0xFF);                   // 虚拟字节设置，默认为0xFF
         OLED_Write_Cmd(0x2F);                   // 激活滚动
@@ -439,7 +443,7 @@ void OLED_ShowRoll( uint8_t Y, uint8_t Line, uint8_t Size, uint8_t Mode )
 			Y ---- Y轴
             Char ---- 字符
             Size ---- 字体大小
-            Inverse ---- 反白显示
+            Inverse ---- 反白显示使能
 返 回 值 ： 无
 *************************************************/
 void OLED_ShowChar( uint8_t X, uint8_t Y, uint8_t Char, uint8_t Size, uint8_t Inverse )
@@ -449,33 +453,36 @@ void OLED_ShowChar( uint8_t X, uint8_t Y, uint8_t Char, uint8_t Size, uint8_t In
 
     if(X <= OLED_MAX_COLUMN - 8 && (Y < (OLED_MAX_ROW >> 3)))
     {
-        value = Char - 32;                                          // 得到偏移值(偏移量32)
+		if(X >= 0 && Y >= 0)
+		{
+			value = Char - 32;                                          // 得到偏移值(偏移量32)
 
-        if(Size == OLED_FONT_SIXTEEN)                               // 8x16
-        {
-            if(Y < (OLED_MAX_ROW >> 3))
-            {
-                OLED_Coord(X, Y);
-                for(i = 0;i < 8;i++)
-                {
-                    OLED_Write_Data(F8x16[value][i], Inverse);      // 前八个数据
-                }
+			if(Size == OLED_FONT_SIXTEEN)                               // 8x16
+			{
+				OLED_Coord(X, Y);
+				for(i = 0;i < 8;i++)
+				{
+					OLED_Write_Data(F8x16[value][i], Inverse);      // 前八个数据
+				}
 
-                OLED_Coord(X, Y+1);
-                for(i = 0;i < 8;i++)
-                {
-                    OLED_Write_Data(F8x16[value][i + 8], Inverse);  // 后八个数据
-                }
-            }
-        }
-        else if(Size == OLED_FONT_EIGHT)                           // 6x8
-        {
-            OLED_Coord(X, Y);
-            for(i = 0;i < 6;i++)
-            {
-                OLED_Write_Data(F6x8[value][i], Inverse);
-            }
-        }
+				OLED_Coord(X, Y+1);
+				for(i = 0;i < 8;i++)
+				{
+					OLED_Write_Data(F8x16[value][i + 8], Inverse);  // 后八个数据
+				}
+			}
+			else if(Size == OLED_FONT_EIGHT)                           // 6x8
+			{
+				OLED_Coord(X, Y);
+				for(i = 0;i < 6;i++)
+				{
+					OLED_Write_Data(F6x8[value][i], Inverse);
+				}
+				/* 清除剩下的两个 */
+				OLED_Write_Data(0x00, Inverse);
+				OLED_Write_Data(0x00, Inverse);
+			}
+		}
     }
 }
 
@@ -487,7 +494,7 @@ void OLED_ShowChar( uint8_t X, uint8_t Y, uint8_t Char, uint8_t Size, uint8_t In
             Len ---- 长度
             pChar ---- 数据
             Size ---- 字体大小
-            Inverse ---- 反白（全行）显示
+            Inverse ---- 反白（全行）显示使能
 返 回 值 ： 无
 *************************************************/
 void OLED_ShowString( uint8_t X, uint8_t Y, const uint8_t *pChar, uint16_t Len, uint8_t Size, uint8_t Inverse )
@@ -495,16 +502,14 @@ void OLED_ShowString( uint8_t X, uint8_t Y, const uint8_t *pChar, uint16_t Len, 
     uint8_t i,j;
     uint8_t temp = 0;
 
-//    OLED_Write_Cmd(0x2E);                               // 失能滚动
-
     if(Inverse)
     {
         for(j = 0;j < (Size / 8);j++)
         {
             OLED_Coord(0, Y + j);
-            for(i = 0;i < X_WIDTH;i++)
+            for(i = 0;i < OLED_MAX_COLUMN;i++)
             {
-                OLED_Write_Data(OLED_SHOW, DISABLE);    // Bmp_dat = 0x00全屏灭，Bmp_dat = 0xff全屏亮
+                OLED_Write_Data(OLED_SHOW, DISABLE);    // OLED_CLS = 0x00全屏灭，OLED_SHOW = 0xff全屏亮
             }
         }
     }
@@ -513,12 +518,12 @@ void OLED_ShowString( uint8_t X, uint8_t Y, const uint8_t *pChar, uint16_t Len, 
     {
         while(Len--)
         {
-            OLED_ShowChar(X, Y, *pChar, Size, Inverse);
-            X += 8;
-            if(X > OLED_MAX_COLUMN - 8)
+            if(X >= OLED_MAX_COLUMN - 8)
             {
                 break;
             }
+            OLED_ShowChar(X, Y, *pChar, Size, Inverse);
+            X += 8;
             pChar++;
         }
     }
@@ -551,44 +556,27 @@ void OLED_ShowString( uint8_t X, uint8_t Y, const uint8_t *pChar, uint16_t Len, 
 
 /************************************************
 函数名称 ： OLED_ShowPrintf
-功    能 ： OLED字符串输出（自动换行）
+功    能 ： OLED字符串输出（自动顶部对齐换行）
 参    数 ： X ---- X轴
 			Y ---- Y轴
             pChar ---- 数据
             Size ---- 字体大小
-            Align ---- 对齐显示
-            Inverse ---- 反白（单字体）显示
+            Align ---- 对齐显示使能
+            Inverse ---- 反白（单字体）显示使能
 返 回 值 ： 无
 *************************************************/
 void OLED_ShowPrintf( uint8_t X, uint8_t Y, const uint8_t *pChar, uint8_t Size, _Bool Align, uint8_t Inverse )
 {
     uint8_t addr = 0;
-//    uint8_t i,j;
-
-//    OLED_Write_Cmd(0x2E);           // 失能滚动
-
-//    if(Inverse)
-//    {
-//        for(j = 0;j < (Size / 8);j++)
-//        {
-//            OLED_Coord(0, Y + j);
-//            for(i = 0;i < X_WIDTH;i++)
-//            {
-//                OLED_Write_Data(OLED_SHOW, DISABLE);     // Bmp_dat = 0x00全屏灭，Bmp_dat = 0xff全屏亮
-//            }
-//        }
-//    }
 
     if(Align)
     {
-        addr = X;
+        addr = X;		// 记录顶部对齐位置 
     }
 
 	while(*pChar != '\0')
 	{
-        OLED_ShowChar(X, Y, *pChar, Size, Inverse);
-		X += 8;
-		if(X > OLED_MAX_COLUMN - 8)             // 列溢出
+		if(X >= OLED_MAX_COLUMN - 8)             // 列溢出
         {
             X = addr;                           // 对齐列地址
             Y += (Size >> 3);                   // 转到下一行
@@ -597,6 +585,8 @@ void OLED_ShowPrintf( uint8_t X, uint8_t Y, const uint8_t *pChar, uint8_t Size, 
                 break;                         // Y轴越界退出
             }
         }
+        OLED_ShowChar(X, Y, *pChar, Size, Inverse);
+		X += 8;
         pChar++;
 	}
 }
@@ -608,7 +598,7 @@ void OLED_ShowPrintf( uint8_t X, uint8_t Y, const uint8_t *pChar, uint8_t Size, 
 			N ---- Y轴
 返 回 值 ： power ---- 幂
 *************************************************/
-static uint32_t OLED_Power( uint8_t M, uint8_t N )
+uint32_t OLED_Power( uint8_t M, uint8_t N )
 {
 	uint32_t power = 1;
 
@@ -628,23 +618,28 @@ static uint32_t OLED_Power( uint8_t M, uint8_t N )
             Num ---- 数字
             Len ---- 位数
             Size ---- 字体大小
-            Inverse ---- 反白显示
+			Prefix ---- 补零显示使能
+            Inverse ---- 反白显示使能
 返 回 值 ： 无
 *************************************************/
-void OLED_ShowNum( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Len, uint8_t Size, uint8_t Inverse )
+void OLED_ShowNum( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Len, uint8_t Size, uint8_t Prefix, uint8_t Inverse )
 {
-	uint8_t t,temp;
+	char temp = 0;
+	uint8_t t;
 	uint8_t show = 0;
 
 	for(t = 0;t < Len;t++)
 	{
-		temp = (uint8_t)(Num / OLED_Power(10, Len - t - 1)) % 10;          // 提取每位数字
+		temp = (Num / OLED_Power(10, Len - t - 1)) % 10;          // 提取每位数字
 
 		if(!show && t < (Len - 1))
 		{
 			if(0 == temp)
 			{
-				OLED_ShowChar(X + 8 *t, Y , ' ', Size, Inverse);
+				if(Prefix)
+					OLED_ShowChar(X + 8 *t, Y , '0', Size, Inverse);
+				else
+					OLED_ShowChar(X + 8 *t, Y , ' ', Size, Inverse);
 				continue;
 			}
             else
@@ -662,9 +657,9 @@ void OLED_ShowNum( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Len, uint8_t Size
 参    数 ： X ---- X轴
 			Y ---- Y轴
             Num ---- 数字（10进制）
-            Size ---- 字体大小
-            Prefix ---- 补零显示
-            Inverse ---- 反白显示
+            Size ---- 字体大小（固定宽度为 8像素）
+            Prefix ---- 补零显示使能
+            Inverse ---- 反白显示使能
 返 回 值 ： 无
 *************************************************/
 void OLED_ShowHex( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Size, uint8_t Prefix, uint8_t Inverse )
@@ -726,7 +721,7 @@ void OLED_ShowHex( uint8_t X, uint8_t Y, uint32_t Num, uint8_t Size, uint8_t Pre
             Num ---- 数字
             Accuracy ---- 精确位数
             Size ---- 字体大小
-            Inverse ---- 反白显示
+            Inverse ---- 反白显示使能
 返 回 值 ： 无
 *************************************************/
 void OLED_ShowFloat( uint8_t X, uint8_t Y, float Num, uint8_t Accuracy, uint8_t Size, uint8_t Inverse )
@@ -793,12 +788,12 @@ void OLED_ShowFloat( uint8_t X, uint8_t Y, float Num, uint8_t Accuracy, uint8_t 
 
 /************************************************
 函数名称 ： OLED_ShowLanguage
-功    能 ： OLED汉字显示(16x16)
+功    能 ： OLED汉字显示(16x16) 不带字库的 
 参    数 ： X ---- X轴
 			Y ---- Y轴
             pArray ---- 数据
             Len ---- 字数长度
-            Inverse ---- 反白显示
+            Inverse ---- 反白显示使能
 返 回 值 ： 无
 *************************************************/
 
@@ -819,26 +814,11 @@ void OLED_ShowLanguage( uint8_t X, uint8_t Y, const uint8_t (*pArray)[16], uint1
     uint8_t i,j;
     uint8_t q = 0;
     uint8_t temp = 0;
-
-//    OLED_Write_Cmd(0x2E);                                       // 失能滚动
-
-    if(Inverse)
-    {
-        for(i = 0;i > 2;i++)
-        {
-            OLED_Write_Cmd(0xB0 + Y + i);                           // 第 n页开始（0~7）
-            OLED_Write_Cmd(0x10);                                   // 设置显示位置 - 列高位第一个
-            OLED_Write_Cmd(0x01);                                   // 设置显示位置 - 列低位第一个
-            for(i = 0;i < X_WIDTH;i++)
-            {
-                OLED_Write_Data(OLED_SHOW, DISABLE);                // Bmp_dat = 0x00全屏灭，Bmp_dat = 0xff全屏亮
-            }
-        }
-    }
+	uint8_t distribute_flag = 0;									// 文字平均分布标志 
 
     if(Len <= 8)
     {
-        if(!X)
+        if(!X)		// 首位显示，自动平均分布 
         {
             switch(Len)
             {
@@ -870,6 +850,7 @@ void OLED_ShowLanguage( uint8_t X, uint8_t Y, const uint8_t (*pArray)[16], uint1
                         break;
             }
             X += temp;
+            distribute_flag = 1; 
         }
 
         for(j = 0;j < Len;j++)
@@ -879,7 +860,7 @@ void OLED_ShowLanguage( uint8_t X, uint8_t Y, const uint8_t (*pArray)[16], uint1
             {
 
 #if (0 == _OLED_ShowLanguage_MODE)
-                OLED_Write_Data(*(pArray + 2*j*16 - 16 + i), Inverse);      // 前十六个数据
+                OLED_Write_Data(*(pArray + 2*j*16 + i), Inverse);      // 前十六个数据
 
 #elif (1 == _OLED_ShowLanguage_MODE)
                 OLED_Write_Data(pArray[2*j][i], Inverse);       // 前十六个数据
@@ -892,7 +873,7 @@ void OLED_ShowLanguage( uint8_t X, uint8_t Y, const uint8_t (*pArray)[16], uint1
             {
 
 #if (0 == _OLED_ShowLanguage_MODE)
-                OLED_Write_Data(*(pArray + 2*j*16 + i), Inverse);           // 后十六个数据
+                OLED_Write_Data(*(pArray + 2*j*16 + 16 + i), Inverse);           // 后十六个数据
 
 #elif (1 == _OLED_ShowLanguage_MODE)
                 OLED_Write_Data(pArray[2*j + 1][i], Inverse);   // 后十六个数据
@@ -900,14 +881,18 @@ void OLED_ShowLanguage( uint8_t X, uint8_t Y, const uint8_t (*pArray)[16], uint1
 #endif /* _OLED_ShowLanguage_MODE */
             }
             X += (16 + temp);
-            q++;
 
-            /* 特殊处理 */
-            if((4 == Len && 1 == q) || (6 == Len && 0 == (q + 1) % 2))
+            if(distribute_flag)
             {
-                X -= 1;
-            }
-        }
+            	q++;
+
+	            /* 特殊处理 */
+	            if((4 == Len && 2 == q) || (6 == Len && 0 == (q + 1) % 2))
+	            {
+	                X -= 1;
+	            }
+	        }
+		}
     }
     else if(Len < (OLED_GRAM_MAX >> 1))
     {
@@ -1002,6 +987,7 @@ void OLED_Init(void)
 {
     OLED_Config();
 
+#ifndef _OLED_IIC_MODE
 	OLED_SCK(HIGH);          // 空闲态时，SCLK处于高电平
 	OLED_CS(HIGH);	         // 关闭选择输入
 
@@ -1010,6 +996,8 @@ void OLED_Init(void)
     OLED_Delay_ms(100);
 	OLED_RST(HIGH);
     OLED_Delay_ms(30);
+
+#endif /* _OLED_IIC_MODE */
 
     OLED_Write_Cmd(0xAE);    // 关闭OLED -- turn off oled panel
     OLED_Write_Cmd(0xD5);    // 设置显示时钟分频因子/振荡器频率 -- set display clock divide ratio/oscillator frequency
@@ -1044,6 +1032,114 @@ void OLED_Init(void)
     OLED_Fill(0x00);         // 初始清屏
     OLED_Coord(0,0);         // 设置原点坐标（0, 0）
 }
+
+/************************* 	需要提供字库相关文件 *************************/
+
+#ifdef _FONT_LIBRARY
+
+/************************************************
+函数名称 ： OLED_ShowChinese
+功    能 ： OLED单汉字显示 
+参    数 ： X ---- X轴
+			Y ---- Y轴
+            pArray ---- 数据
+            Inverse ---- 反白显示使能
+返 回 值 ： 无 
+*************************************************/
+void OLED_ShowChinese( uint8_t X, uint8_t Y, const uint8_t *pArray, uint8_t Inverse )
+{
+	uint8_t i;
+	uint8_t buffer[GB2312_1616_BYTE_SIZE] = {0};
+
+    if(X <= OLED_MAX_COLUMN - 16 && (Y < (OLED_MAX_ROW >> 3)))
+	{
+		Get_GB2312_Code(buffer, pArray);
+		
+		OLED_Coord(X, Y);
+		for(i = 0;i < 16;i++)
+		{
+			OLED_Write_Data(buffer[i], Inverse);      // 前十六个数据
+		}
+		OLED_Coord(X, Y+1);
+		for(i = 0;i < 16;i++)
+		{
+			OLED_Write_Data(buffer[i + 16], Inverse); // 后十六个数据
+		}
+	}
+}
+
+/************************************************
+函数名称 ： OLED_Draw_Font
+功    能 ： OLED中英输出显示（支持混合显示）
+参    数 ： X ---- X轴
+			Y ---- Y轴
+            pArray ---- 数据
+            Inverse ---- 反白显示使能
+返 回 值 ： 无 
+*************************************************/
+void OLED_Draw_Font( uint8_t X, uint8_t Y, const uint8_t *pArray, uint8_t Inverse )
+{
+	uint8_t i = 0;
+	uint16_t j = 0;
+	uint8_t buffer[GB2312_1616_BYTE_SIZE] = {0};
+	
+	while(*pArray != '\0')
+	{
+		if(*pArray < 127)			// ASCII码
+		{
+			if(X + 8 > OLED_MAX_COLUMN)
+			{
+				X = 0;
+				Y += 2;			// 换行
+			}
+			if(Y > (OLED_MAX_ROW >> 3))
+			{
+				X = 0;
+				Y = 0;			// 跳到原点
+			}
+			
+			OLED_ShowChar(X, Y, *pArray, OLED_FONT_SIXTEEN, Inverse);
+			X += 8;
+			pArray++;			// 一个 ASCII码1个字节
+		}
+		else						// GB2312码
+		{
+			if(X + 16 > OLED_MAX_COLUMN)
+			{
+				X = 0;
+				Y += 2;			// 换行
+			}
+			if(Y > (OLED_MAX_ROW >> 3))
+			{
+				X = 0;
+				Y = 0;			// 跳到原点
+			}
+
+//			Get_GB2312_Code(buffer, pArray);
+//			
+//			OLED_Coord(X, Y);
+//			for(i = 0;i < 16;i++)
+//			{
+//				OLED_Write_Data(*(buffer + 2*j*16 + i), Inverse);      // 前十六个数据
+//			}
+//			OLED_Coord(X, Y+1);
+//			for(i = 0;i < 16;i++)
+//			{
+//				OLED_Write_Data(*(buffer + 2*j*16 + 16 + i), Inverse); // 后十六个数据
+//			}
+//			j++;
+			
+			OLED_ShowChinese(X, Y, pArray, Inverse);
+			X += 16;
+			pArray += 2;		// 一个 GB2312文字两个字节
+		}
+	}
+}
+
+#endif /* _FONT_LIBRARY */
+
+
+/************************* 	需要提供字库相关文件 *************************/
 
 
 /*---------------------------- END OF FILE ----------------------------*/
