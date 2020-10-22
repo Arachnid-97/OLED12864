@@ -488,7 +488,7 @@ void OLED_ShowChar( uint8_t X, uint8_t Y, uint8_t Char, uint8_t Size, uint8_t In
 
 /************************************************
 函数名称 ： OLED_ShowString
-功    能 ： OLED字符串显示（超区域自动滚动）
+功    能 ： OLED字符串显示
 参    数 ： X ---- X轴
 			Y ---- Y轴
             Len ---- 长度
@@ -525,31 +525,6 @@ void OLED_ShowString( uint8_t X, uint8_t Y, const uint8_t *pChar, uint16_t Len, 
             OLED_ShowChar(X, Y, *pChar, Size, Inverse);
             X += 8;
             pChar++;
-        }
-    }
-    else if(Len <= OLED_GRAM_MAX)
-    {
-        g_OLED_Roll_Page |= (1 << Y);
-
-        for(j = 0;j < Len;j++)
-        {
-            temp = *(pChar + j) - 32;                                   // 得到偏移值(偏移量32)
-
-            if(Size == OLED_FONT_SIXTEEN)                               // 8x16
-            {
-                for(i = 0;i < 16;i++)
-                {
-                    g_OLED_Gram[j][i] = F8x16[temp][i];                   // 存入显存区
-                }
-            }
-//            else if(Size == OLED_FONT_EIGHT)                           // 6x8
-//            {
-//                OLED_Coord(X, Y);
-//                for(i = 0;i < 6;i++)
-//                {
-//                    OLED_Gram[j][i] = F6x8[temp][i];
-//                }
-//            }
         }
     }
 }
@@ -893,26 +868,6 @@ void OLED_ShowLanguage( uint8_t X, uint8_t Y, const uint8_t (*pArray)[16], uint1
 	            }
 	        }
 		}
-    }
-    else if(Len < (OLED_GRAM_MAX >> 1))
-    {
-        g_OLED_Roll_Page |= (1 << Y);
-
-        for(j = 0;j < Len;j++)
-        {
-            for(i = 0;i < 16;i++)
-            {
-
-#if (0 == _OLED_ShowLanguage_MODE)
-                g_OLED_Gram[j][i] = *(pArray + j*16 + i);                  // 存入显存区
-
-#elif (1 == _OLED_ShowLanguage_MODE)
-                g_OLED_Gram[j][i] = pArray[j][i];                 // 存入显存区
-
-#endif /* _OLED_ShowLanguage_MODE */
-            }
-        }
-
     }
 }
 
